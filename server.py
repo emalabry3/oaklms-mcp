@@ -6,7 +6,7 @@ from session_store import store
 
 mcp = FastMCP(
     "oaklms",
-    description="OakLMS — séquences, niveaux, diaporamas, formations. Toutes les créations supportent dry_run=True.",
+    instructions="OakLMS — séquences, niveaux, diaporamas, formations. Toutes les créations supportent dry_run=True.",
 )
 
 
