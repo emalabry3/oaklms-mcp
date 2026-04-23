@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# oaklms-switch — Bascule OAKLMS_URL entre dev et prod dans ~/.claude/settings.json
+set -euo pipefail
+
+if [[ $# -lt 1 ]] || [[ "$1" != "dev" && "$1" != "prod" ]]; then
+    echo "Usage : oaklms-switch dev|prod [url]"
+    echo ""
+    echo "  dev  → http://localhost:8080 (défaut)"
+    echo "  prod → URL prod configurée, ou spécifiée en 2ème argument"
+    exit 1
+fi
+
+ENV="$1"
+SETTINGS="$HOME/.claude/settings.json"
+
+if [ ! -f "$SETTINGS" ]; then
+    echo "Erreur : $SETTINGS introuvable. Lancez d'abord install.sh."
+    exit 1
+fi
+
+python3 - <<PYEOF
+import json, sys
+
+env = "$ENV"
+custom_url = "${2:-}"
+settings_path = "$SETTINGS"
+
+with open(settings_path) as f:
+    settings = json.load(f)
+
+if "oaklms" not in settings.get("mcpServers", {}):
+    print("Erreur : MCP server 'oaklms' non trouvé. Lancez d'abord install.sh.", file=sys.stderr)
+    sys.exit(1)
+
+if env == "dev":
+    new_url = custom_url or "http://localhost:8080"
+elif env == "prod":
+    current_url = settings["mcpServers"]["oaklms"].get("env", {}).get("OAKLMS_URL", "")
+    if custom_url:
+        new_url = custom_url
+    elif "localhost" not in current_url:
+        print(f"Déjà en prod : {current_url}")
+        sys.exit(0)
+    else:
+        new_url = input("URL prod OakLMS : ").strip().rstrip("/")
+
+settings["mcpServers"]["oaklms"]["env"]["OAKLMS_URL"] = new_url
+
+with open(settings_path, "w") as f:
+    json.dump(settings, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+
+print(f"✓ OAKLMS_URL → {new_url}")
+print("Redémarrez Claude Code pour appliquer.")
+PYEOF
